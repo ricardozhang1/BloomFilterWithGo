@@ -1,0 +1,78 @@
+package main
+
+import (
+	"fmt"
+	"github.com/bits-and-blooms/bitset"
+)
+
+const DefaultSize = 2 << 24
+
+var seed = []uint{7, 11, 13, 31, 37, 61}
+
+type BloomFilter struct {
+	SetArray *bitset.BitSet
+	Funcs [6]SimpleHash
+}
+
+func NewBloomFilter() *BloomFilter {
+	bf := new(BloomFilter)
+	for i:=0; i < len(bf.Funcs); i++ {
+		bf.Funcs[i] = SimpleHash{DefaultSize, seed[i]}
+	}
+
+	bf.SetArray = bitset.New(DefaultSize)
+	return bf
+}
+
+func (bf *BloomFilter) Add(value string) {
+	for _, f := range bf.Funcs {
+		bf.SetArray.Set(f.hash(value))
+	}
+}
+
+func (bf *BloomFilter) Contains(value string) bool {
+	if value == "" {
+		return false
+	}
+	ret := true
+	for _, f := range bf.Funcs {
+		ret = ret && bf.SetArray.Test(f.hash(value))
+	}
+	return ret
+}
+
+// SimpleHash 实现一个简单的hash值
+type SimpleHash struct {
+	Cap uint
+	Seed uint
+}
+
+func (s *SimpleHash) hash(value string) uint {
+	var result uint
+	for i:=0; i<len(value); i++ {
+		result = result * s.Seed + uint(value[i])
+	}
+	// 使用 与 运算
+	return (s.Cap-1)&result
+}
+
+
+func main() {
+	filter := NewBloomFilter()
+	fmt.Println(filter.Funcs[1].Seed)
+
+	str1 := "bloom filter"
+	filter.Add(str1)
+
+	str2 := "good good study"
+	filter.Add(str2)
+
+	str3 := "day day up"
+	filter.Add(str3)
+
+	fmt.Println(filter.SetArray.Count())
+	fmt.Println(filter.Contains(str1))
+	fmt.Println(filter.Contains(str2))
+	fmt.Println(filter.Contains(str3))
+	fmt.Println(filter.Contains("filter"))
+}
